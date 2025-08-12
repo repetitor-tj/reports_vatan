@@ -41,35 +41,32 @@
   .student{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border:1px solid var(--line); background:#fff; border-radius:12px }
   .mark{ display:flex; align-items:center; gap:10px; color:#475569; font-size:12px }
 
-  /* ТУМБЛЕР */
-/* ===== ТУМБЛЕР (зелёный по умолчанию, красный при отсутствии) ===== */
-:root{
-  --present:#22C55E;  /* зелёный: начальное состояние (присутствует) */
-  --absent:#E23D3B;   /* красный: отсутствует */
-}
-
-.toggle{
-  appearance:none; -webkit-appearance:none;
-  width:46px; height:26px; border-radius:999px;
-  background:var(--present);                   /* ← зелёный по умолчанию */
-  border:1px solid var(--present);
-  position:relative; cursor:pointer; outline:none;
-  transition:background .18s ease, border-color .18s ease;
-  box-shadow:inset 0 1px 2px rgba(0,0,0,.08);
-}
-.toggle::after{
-  content:""; position:absolute; top:50%; left:3px;
-  width:20px; height:20px; border-radius:50%; background:#fff;
-  transform:translate(0,-50%); transition:transform .18s ease, box-shadow .18s ease;
-  box-shadow:0 1.5px 2.5px rgba(0,0,0,.25);
-}
-.toggle:checked{
-  background:var(--absent);                    /* ← красный, когда “отсутствует” */
-  border-color:var(--absent);
-}
-.toggle:checked::after{ transform:translate(20px,-50%) }
-.toggle:active::after{ box-shadow:0 0 0 8px rgba(0,0,0,.04) }
-
+  /* ===== ТУМБЛЕР (зелёный по умолчанию, красный при отсутствии) ===== */
+  :root{
+    --present:#22C55E;  /* зелёный: начальное состояние (присутствует) */
+    --absent:#E23D3B;   /* красный: отсутствует */
+  }
+  .toggle{
+    appearance:none; -webkit-appearance:none;
+    width:46px; height:26px; border-radius:999px;
+    background:var(--present);
+    border:1px solid var(--present);
+    position:relative; cursor:pointer; outline:none;
+    transition:background .18s ease, border-color .18s ease;
+    box-shadow:inset 0 1px 2px rgba(0,0,0,.08);
+  }
+  .toggle::after{
+    content:""; position:absolute; top:50%; left:3px;
+    width:20px; height:20px; border-radius:50%; background:#fff;
+    transform:translate(0,-50%); transition:transform .18s ease, box-shadow .18s ease;
+    box-shadow:0 1.5px 2.5px rgba(0,0,0,.25);
+  }
+  .toggle:checked{
+    background:var(--absent);
+    border-color:var(--absent);
+  }
+  .toggle:checked::after{ transform:translate(20px,-50%) }
+  .toggle:active::after{ box-shadow:0 0 0 8px rgba(0,0,0,.04) }
 
   /* Спиннер */
   .spinner{ width:16px; height:16px; border-radius:50%; border:2px solid rgba(255,255,255,.4); border-top-color:#fff; animation:spin 1s linear infinite }
@@ -146,7 +143,7 @@
 <div id="snack" class="snackbar" role="status" aria-live="polite">Отчёт отправлен</div>
 
 <script>
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzyAcUVGRtx1Cl2UQMNjVjzu4QKGM0hZdeuV8Y5oKW5HOeiEvldjKUPJPyCDL5MuQZF/exec"; // вставьте ваш /exec
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzyAcUVGRtx1Cl2UQMNjVjzu4QKGM0hZdeuV8Y5oKW5HOeiEvldjKUPJPyCDL5MuQZF/exec";
 
   // JSONP helper (массивы склеиваем запятыми)
   function jsonp(url, params, onDone, onFail){
@@ -167,6 +164,24 @@
   const studentsCard=$('studentsCard'), studentsList=$('students');
   const msgEl=$('msg'), snack=$('snack'), afterSend=$('afterSend'), absentList=$('absentList');
   const subjectStatus=$('subjectStatus'), groupStatus=$('groupStatus'), studentsStatus=$('studentsStatus');
+
+  /* === Автосохранение имени преподавателя === */
+  const LS_KEY_TEACHER = 'ejournal.teacher';
+  function loadTeacherFromLS(){
+    const v = localStorage.getItem(LS_KEY_TEACHER);
+    if (v) teacherInp.value = v;
+  }
+  function saveTeacherToLS(){
+    const v = teacherInp.value.trim();
+    if (v) localStorage.setItem(LS_KEY_TEACHER, v);
+    else   localStorage.removeItem(LS_KEY_TEACHER);
+  }
+  let _tSave;
+  function debouncedSaveTeacher(){
+    clearTimeout(_tSave);
+    _tSave = setTimeout(saveTeacherToLS, 300);
+  }
+  /* === конец автосохранения === */
 
   function setLoading(el,on,text){ el.style.display=on?'flex':'none'; if(text) el.querySelector('span:last-child').textContent=text; }
   function setBtnLoading(btn,on,labelLoading){
@@ -229,12 +244,13 @@
     jsonp(SCRIPT_URL,{action:'submitabsences',teacher,subject,group,absent:absent.join(',')},(res)=>{
       setBtnLoading(sendBtn,false);
       if(res&&res.ok){
+        // сохраним имя в localStorage
+        saveTeacherToLS();
+
         msgEl.textContent=`Сохранено записей: ${absent.length}`; msgEl.className='success';
         showSnack('Отчёт отправлен');
-        // список отсутствующих + кнопка закрыть
         absentList.innerHTML=''; absent.forEach(n=>{ const li=document.createElement('li'); li.textContent=n; absentList.appendChild(li); });
         afterSend.style.display='block';
-        // отметки сохраняем (не очищаем)
       }else{
         msgEl.textContent=(res&&res.message)||'Ошибка при сохранении'; msgEl.className='error';
       }
@@ -243,8 +259,13 @@
 
   $('closeBtn')?.addEventListener('click',()=>{ try{ window.open('','_self'); window.close(); }catch(e){ location.href='about:blank'; } });
 
-  document.addEventListener('DOMContentLoaded',loadSubjects);
+  // init
+  document.addEventListener('DOMContentLoaded', ()=>{
+    loadTeacherFromLS();  // ← подставим сохранённое имя
+    loadSubjects();
+  });
   groupSel.addEventListener('change',updateShowBtnState);
+  teacherInp.addEventListener('input', debouncedSaveTeacher); // ← автосохранение при вводе
 </script>
 </body>
 </html>
