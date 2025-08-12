@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Отметка отсутствующих</title>
+<style>
+  :root{
+    --primary:#29A9E8; --danger:#E23D3B; --white:#FFFFFF;
+    --switch-on:#22C55E; /* зелёный тумблер */
+    --text:#0B1520; --muted:#5A6B7A; --line:#E7EEF3;
+    --shadow:0 12px 28px rgba(11,21,32,.08); --radius:16px;
+  }
+  *{ box-sizing:border-box }
+  body{ margin:0; background:#F6FAFD; color:var(--text); font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
+  .wrap{ max-width:560px; margin:0 auto; padding:20px; display:flex; flex-direction:column; gap:16px; }
+  header h1{ margin:6px 0 2px; font-size:22px }
+  header p{ margin:0; color:var(--muted); font-size:13px }
+
+  .card{ background:var(--white); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; display:flex; flex-direction:column; gap:12px }
+  label{ font-weight:600; font-size:14px; margin-bottom:6px; display:block }
+  input,select,button{ width:100%; border-radius:12px; border:1px solid var(--line); outline:none }
+  input,select{ background:#FBFDFF; padding:12px 14px }
+  input:focus,select:focus{ border-color:var(--primary) }
+  .row{ display:flex; flex-direction:column; gap:12px }
+
+  .btn{
+    background:var(--primary); color:#fff; border:0; padding:12px 16px;
+    font-weight:700; cursor:pointer; transition:transform .08s ease,opacity .2s ease;
+    display:flex; align-items:center; justify-content:center; gap:10px; border-radius:12px;
+  }
+  .btn:active{ transform:translateY(1px) }
+  .btn.secondary{ background:#fff; color:var(--danger); border:1px solid #F3D1CF }
+  .btn:disabled{ opacity:.6; cursor:not-allowed }
+
+  .status{ display:flex; align-items:center; gap:10px; background:#F1FAFE; color:#0B6B94; border:1px dashed #CFEAFA; padding:10px 12px; border-radius:12px; font-size:14px }
+  .muted{ color:var(--muted); font-size:12px }
+  .chip{ display:inline-flex; align-items:center; gap:8px; background:#F2F9FE; border:1px solid var(--line); border-radius:999px; padding:6px 10px; font-size:12px; color:var(--muted) }
+
+  .students{ display:flex; flex-direction:column; gap:8px }
+  .student{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border:1px solid var(--line); background:#fff; border-radius:12px }
+  .mark{ display:flex; align-items:center; gap:10px; color:#475569; font-size:12px }
+
+  /* ТУМБЛЕР */
+/* ===== ТУМБЛЕР (зелёный по умолчанию, красный при отсутствии) ===== */
+:root{
+  --present:#22C55E;  /* зелёный: начальное состояние (присутствует) */
+  --absent:#E23D3B;   /* красный: отсутствует */
+}
+
+.toggle{
+  appearance:none; -webkit-appearance:none;
+  width:46px; height:26px; border-radius:999px;
+  background:var(--present);                   /* ← зелёный по умолчанию */
+  border:1px solid var(--present);
+  position:relative; cursor:pointer; outline:none;
+  transition:background .18s ease, border-color .18s ease;
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.08);
+}
+.toggle::after{
+  content:""; position:absolute; top:50%; left:3px;
+  width:20px; height:20px; border-radius:50%; background:#fff;
+  transform:translate(0,-50%); transition:transform .18s ease, box-shadow .18s ease;
+  box-shadow:0 1.5px 2.5px rgba(0,0,0,.25);
+}
+.toggle:checked{
+  background:var(--absent);                    /* ← красный, когда “отсутствует” */
+  border-color:var(--absent);
+}
+.toggle:checked::after{ transform:translate(20px,-50%) }
+.toggle:active::after{ box-shadow:0 0 0 8px rgba(0,0,0,.04) }
+
+
+  /* Спиннер */
+  .spinner{ width:16px; height:16px; border-radius:50%; border:2px solid rgba(255,255,255,.4); border-top-color:#fff; animation:spin 1s linear infinite }
+  @keyframes spin{ to{ transform:rotate(360deg) } }
+
+  /* Snackbar */
+  .snackbar{ position:fixed; left:50%; bottom:16px; transform:translateX(-50%) translateY(20px); background:var(--primary); color:#fff; padding:12px 16px; border-radius:999px; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:.25s ease }
+  .snackbar.show{ opacity:1; transform:translateX(-50%) translateY(0) }
+
+  .absent-list{ margin:0; padding:0 0 0 18px }
+  .absent-title{ font-weight:700; margin:8px 0 6px }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Отметка отсутствующих</h1>
+    <p>Быстрая фиксация пропусков занятий</p>
+  </header>
+
+  <section class="card" aria-live="polite">
+    <div class="row">
+      <div>
+        <label for="teacher">Преподаватель</label>
+        <input id="teacher" type="text" placeholder="Например: И.А. Петров">
+        <div class="muted" style="margin-top:4px">Ваше имя попадёт в отчёт</div>
+      </div>
+
+      <div>
+        <label for="subject">Предмет</label>
+        <div id="subjectStatus" class="status" style="display:none">
+          <span class="spinner" style="border-color:#CFEAFA;border-top-color:#29A9E8"></span><span>Мы ищем ваши предметы…</span>
+        </div>
+        <select id="subject" disabled><option>Загрузка…</option></select>
+      </div>
+
+      <div>
+        <label for="group">Группа</label>
+        <div id="groupStatus" class="status" style="display:none">
+          <span class="spinner" style="border-color:#CFEAFA;border-top-color:#29A9E8"></span><span>Мы ищем ваши группы…</span>
+        </div>
+        <select id="group" disabled><option>Сначала выберите предмет</option></select>
+      </div>
+
+      <button class="btn" id="showBtn" disabled><span>Показать учеников</span></button>
+    </div>
+  </section>
+
+  <section class="card" id="studentsCard" style="display:none" aria-live="polite">
+    <div class="row">
+      <div id="studentsStatus" class="status" style="display:none">
+        <span class="spinner" style="border-color:#CFEAFA;border-top-color:#29A9E8"></span><span>Ищем учеников…</span>
+      </div>
+
+      <div class="students" id="students"></div>
+
+      <div class="row">
+        <button class="btn" id="sendBtn"><span>Отправить отчёт</span></button>
+        <div class="chip">Отмечайте только отсутствующих</div>
+        <p id="msg" class="muted"></p>
+
+        <!-- Появляется после отправки -->
+        <div id="afterSend" style="display:none">
+          <div class="absent-title">Отсутствующие:</div>
+          <ul id="absentList" class="absent-list"></ul>
+          <div style="height:8px"></div>
+          <button class="btn secondary" id="closeBtn">Закрыть журнал</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div id="snack" class="snackbar" role="status" aria-live="polite">Отчёт отправлен</div>
+
+<script>
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzcM3MpIY_OiL5HQtdjqWycNCeU6REFPQHrM9ZDy3gBMKz3HlZcgrqkrEAhkZttCG_g/exec"; // вставьте ваш /exec
+
+  // JSONP helper (массивы склеиваем запятыми)
+  function jsonp(url, params, onDone, onFail){
+    const cb = "cb"+Math.random().toString(36).slice(2);
+    const sp = new URLSearchParams({callback:cb});
+    if(params) for(const [k,v] of Object.entries(params)) sp.set(k, Array.isArray(v)?v.join(','):v);
+    const s=document.createElement('script');
+    window[cb]=d=>{cleanup(); onDone&&onDone(d)};
+    s.onerror=()=>{cleanup(); onFail&&onFail(new Error('JSONP load error'))};
+    s.src=`${url}?${sp.toString()}`; document.body.appendChild(s);
+    function cleanup(){ delete window[cb]; s.remove(); }
+  }
+
+  // UI refs
+  const $ = id=>document.getElementById(id);
+  const subjectSel=$('subject'), groupSel=$('group'), teacherInp=$('teacher');
+  const showBtn=$('showBtn'), sendBtn=$('sendBtn');
+  const studentsCard=$('studentsCard'), studentsList=$('students');
+  const msgEl=$('msg'), snack=$('snack'), afterSend=$('afterSend'), absentList=$('absentList');
+  const subjectStatus=$('subjectStatus'), groupStatus=$('groupStatus'), studentsStatus=$('studentsStatus');
+
+  function setLoading(el,on,text){ el.style.display=on?'flex':'none'; if(text) el.querySelector('span:last-child').textContent=text; }
+  function setBtnLoading(btn,on,labelLoading){
+    if(on){ btn.dataset.label=btn.textContent.trim(); btn.disabled=true; btn.innerHTML=`<span class="spinner"></span><span>${labelLoading}</span>`; }
+    else { btn.disabled=false; btn.innerHTML=`<span>${btn.dataset.label||'Готово'}</span>`; delete btn.dataset.label; }
+  }
+  function updateShowBtnState(){ showBtn.disabled=!subjectSel.value||!groupSel.value; }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function showSnack(t='Отчёт отправлен'){ snack.textContent=t; snack.classList.add('show'); setTimeout(()=>snack.classList.remove('show'),2000); }
+
+  // Предметы
+  function loadSubjects(){
+    setLoading(subjectStatus,true,'Мы ищем ваши предметы…'); subjectSel.disabled=true;
+    jsonp(SCRIPT_URL,{action:'subjects'},(d)=>{
+      subjectSel.innerHTML='<option value="">— выберите предмет —</option>';
+      if(d&&d.ok) (d.data||[]).forEach(s=>{ const o=document.createElement('option'); o.value=s;o.textContent=s; subjectSel.appendChild(o); });
+      else subjectSel.innerHTML='<option value="">Ошибка загрузки</option>';
+      subjectSel.disabled=false; setLoading(subjectStatus,false); updateShowBtnState();
+    },()=>{ subjectSel.innerHTML='<option value="">Ошибка сети</option>'; subjectSel.disabled=false; setLoading(subjectStatus,false); });
+  }
+
+  // Группы
+  subjectSel.addEventListener('change',()=>{
+    studentsCard.style.display='none'; studentsList.innerHTML=''; msgEl.textContent=''; afterSend.style.display='none';
+    const subject=subjectSel.value.trim(); if(!subject){ groupSel.innerHTML='<option value="">Сначала выберите предмет</option>'; groupSel.disabled=true; updateShowBtnState(); return; }
+    setLoading(groupStatus,true,'Мы ищем ваши группы…'); groupSel.disabled=true;
+    jsonp(SCRIPT_URL,{action:'groups',subject},(d)=>{
+      groupSel.innerHTML=(d&&d.ok&&d.data.length)?'<option value="">— выберите группу —</option>':'<option value="">Группы не найдены</option>';
+      if(d&&d.ok) (d.data||[]).forEach(g=>{ const o=document.createElement('option'); o.value=g;o.textContent=g; groupSel.appendChild(o); });
+      groupSel.disabled=false; setLoading(groupStatus,false); updateShowBtnState();
+    },()=>{ groupSel.innerHTML='<option value="">Ошибка сети</option>'; groupSel.disabled=false; setLoading(groupStatus,false); });
+  });
+
+  // Ученики
+  showBtn.addEventListener('click',()=>{
+    const subject=subjectSel.value.trim(), group=groupSel.value.trim(); if(!subject||!group) return;
+    studentsCard.style.display='block'; studentsList.innerHTML=''; afterSend.style.display='none';
+    setBtnLoading(showBtn,true,'Ищем учеников…'); setLoading(studentsStatus,true,'Ищем учеников…');
+    jsonp(SCRIPT_URL,{action:'students',subject,group},(d)=>{
+      setBtnLoading(showBtn,false); setLoading(studentsStatus,false);
+      if(!(d&&d.ok)){ studentsList.innerHTML='<div class="muted">Ошибка загрузки</div>'; return; }
+      const arr=d.data||[]; if(!arr.length){ studentsList.innerHTML='<div class="muted">По выбранным параметрам «Активных» учеников не найдено.</div>'; return; }
+      arr.forEach(st=>{
+        const row=document.createElement('div'); row.className='student';
+        row.innerHTML=`<div>${escapeHtml(st)}</div>
+                       <label class="mark"><input class="toggle" type="checkbox" value="${escapeHtml(st)}"><span>отсутствует</span></label>`;
+        studentsList.appendChild(row);
+      });
+    },()=>{ setBtnLoading(showBtn,false); setLoading(studentsStatus,false); studentsList.innerHTML='<div class="muted">Ошибка сети</div>'; });
+  });
+
+  // Отправка
+  sendBtn.addEventListener('click',()=>{
+    const teacher=teacherInp.value.trim(), subject=subjectSel.value.trim(), group=groupSel.value.trim();
+    const absent=Array.from(studentsList.querySelectorAll('input.toggle:checked')).map(cb=>cb.value);
+    if(!teacher||!subject||!group){ msgEl.textContent='Заполните: преподаватель, предмет, группа'; msgEl.className='error'; return; }
+    if(!absent.length){ msgEl.textContent='Вы не отметили отсутствующих'; msgEl.className='error'; return; }
+
+    setBtnLoading(sendBtn,true,'Отправляем ваш отчёт…');
+    jsonp(SCRIPT_URL,{action:'submitabsences',teacher,subject,group,absent:absent.join(',')},(res)=>{
+      setBtnLoading(sendBtn,false);
+      if(res&&res.ok){
+        msgEl.textContent=`Сохранено записей: ${absent.length}`; msgEl.className='success';
+        showSnack('Отчёт отправлен');
+        // список отсутствующих + кнопка закрыть
+        absentList.innerHTML=''; absent.forEach(n=>{ const li=document.createElement('li'); li.textContent=n; absentList.appendChild(li); });
+        afterSend.style.display='block';
+        // отметки сохраняем (не очищаем)
+      }else{
+        msgEl.textContent=(res&&res.message)||'Ошибка при сохранении'; msgEl.className='error';
+      }
+    },(e)=>{ setBtnLoading(sendBtn,false); msgEl.textContent='Ошибка сети: '+e.message; msgEl.className='error'; });
+  });
+
+  $('closeBtn')?.addEventListener('click',()=>{ try{ window.open('','_self'); window.close(); }catch(e){ location.href='about:blank'; } });
+
+  document.addEventListener('DOMContentLoaded',loadSubjects);
+  groupSel.addEventListener('change',updateShowBtnState);
+</script>
+</body>
+</html>
