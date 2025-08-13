@@ -3,13 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Отметка отсутствующих</title>
+<title>📅 Отметка отсутствующих Repetitor.tj</title>
 <style>
   :root{
     --primary:#29A9E8; --danger:#E23D3B; --white:#FFFFFF;
-    --switch-on:#22C55E; /* зелёный тумблер */
+    --switch-on:#22C55E;
     --text:#0B1520; --muted:#5A6B7A; --line:#E7EEF3;
     --shadow:0 12px 28px rgba(11,21,32,.08); --radius:16px;
+    --present:#22C55E; --absent:#E23D3B;
   }
   *{ box-sizing:border-box }
   body{ margin:0; background:#F6FAFD; color:var(--text); font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
@@ -39,20 +40,17 @@
 
   .students{ display:flex; flex-direction:column; gap:8px }
   .student{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border:1px solid var(--line); background:#fff; border-radius:12px }
-  .mark{ display:flex; align-items:center; gap:10px; color:#475569; font-size:12px }
+  .mark{ display:flex; align-items:center; gap:10px; font-size:12px }
+  .mark .state{ font-weight:700; color:var(--present); }        /* присутствует */
+  .mark.absent .state{ color:var(--absent); }                   /* отсутствует */
 
-  /* ===== ТУМБЛЕР (зелёный по умолчанию, красный при отсутствии) ===== */
-  :root{
-    --present:#22C55E;  /* зелёный: начальное состояние (присутствует) */
-    --absent:#E23D3B;   /* красный: отсутствует */
-  }
+  /* ТУМБЛЕР */
   .toggle{
     appearance:none; -webkit-appearance:none;
     width:46px; height:26px; border-radius:999px;
-    background:var(--present);
-    border:1px solid var(--present);
+    background:var(--present); border:1px solid var(--present);
     position:relative; cursor:pointer; outline:none;
-    transition:background .18s ease, border-color .18s ease;
+    transition:background .18s ease,border-color .18s ease;
     box-shadow:inset 0 1px 2px rgba(0,0,0,.08);
   }
   .toggle::after{
@@ -61,12 +59,19 @@
     transform:translate(0,-50%); transition:transform .18s ease, box-shadow .18s ease;
     box-shadow:0 1.5px 2.5px rgba(0,0,0,.25);
   }
-  .toggle:checked{
-    background:var(--absent);
-    border-color:var(--absent);
-  }
+  .toggle:checked{ background:var(--absent); border-color:var(--absent) }
   .toggle:checked::after{ transform:translate(20px,-50%) }
   .toggle:active::after{ box-shadow:0 0 0 8px rgba(0,0,0,.04) }
+
+/* Инвертированный тумблер — красный по умолчанию, зелёный при включении */
+.toggle.inverse{
+  background: var(--absent);
+  border-color: var(--absent);
+}
+.toggle.inverse:checked{
+  background: var(--present);
+  border-color: var(--present);
+}
 
   /* Спиннер */
   .spinner{ width:16px; height:16px; border-radius:50%; border:2px solid rgba(255,255,255,.4); border-top-color:#fff; animation:spin 1s linear infinite }
@@ -92,13 +97,13 @@
       <div>
         <label for="teacher">Преподаватель</label>
         <input id="teacher" type="text" placeholder="Например: Бакоев Фаррух">
-        <div class="muted" style="margin-top:4px">Ваше имя попадёт в отчёт</div>
+        <div class="muted" style="margin-top:4px"></div>
       </div>
 
       <div>
         <label for="subject">Предмет</label>
         <div id="subjectStatus" class="status" style="display:none">
-          <span class="spinner" style="border-color:#CFEAFA;border-top-color:#29A9E8"></span><span>Идет поиск предмета…</span>
+          <span class="spinner" style="border-color:#CFEAFA;border-top-color:#29A9E8"></span><span>Поиск предметов…</span>
         </div>
         <select id="subject" disabled><option>Загрузка…</option></select>
       </div>
@@ -106,7 +111,7 @@
       <div>
         <label for="group">Группа</label>
         <div id="groupStatus" class="status" style="display:none">
-          <span class="spinner" style="border-color:#CFEAFA;border-top-color:#29A9E8"></span><span>Идет поиск групп…</span>
+          <span class="spinner" style="border-color:#CFEAFA;border-top-color:#29A9E8"></span><span>Поиск групп…</span>
         </div>
         <select id="group" disabled><option>Сначала выберите предмет</option></select>
       </div>
@@ -118,10 +123,17 @@
   <section class="card" id="studentsCard" style="display:none" aria-live="polite">
     <div class="row">
       <div id="studentsStatus" class="status" style="display:none">
-        <span class="spinner" style="border-color:#CFEAFA;border-top-color:#29A9E8"></span><span>Поиск учеников…</span>
+        <span class="spinner" style="border-color:#CFEAFA;border-top-color:#29A9E8"></span><span>Ищем учеников…</span>
       </div>
 
       <div class="students" id="students"></div>
+
+      <!-- Общий переключатель -->
+      <div class="student" id="allPresentRow" style="display:none">
+        <div style="font-weight:700">Все присутствуют</div>
+        <label class="mark"><input class="toggle inverse" type="checkbox" id="allPresent">
+</label>
+      </div>
 
       <div class="row">
         <button class="btn" id="sendBtn"><span>Отправить отчёт</span></button>
@@ -130,7 +142,7 @@
 
         <!-- Появляется после отправки -->
         <div id="afterSend" style="display:none">
-          <div class="absent-title">Отсутствующие:</div>
+          <div class="absent-title">Отчет о посещаемости:</div>
           <ul id="absentList" class="absent-list"></ul>
           <div style="height:8px"></div>
           <button class="btn secondary" id="closeBtn">Закрыть журнал</button>
@@ -162,26 +174,15 @@
   const subjectSel=$('subject'), groupSel=$('group'), teacherInp=$('teacher');
   const showBtn=$('showBtn'), sendBtn=$('sendBtn');
   const studentsCard=$('studentsCard'), studentsList=$('students');
+  const allPresentRow=$('allPresentRow'), allPresent=$('allPresent');
   const msgEl=$('msg'), snack=$('snack'), afterSend=$('afterSend'), absentList=$('absentList');
   const subjectStatus=$('subjectStatus'), groupStatus=$('groupStatus'), studentsStatus=$('studentsStatus');
 
   /* === Автосохранение имени преподавателя === */
   const LS_KEY_TEACHER = 'ejournal.teacher';
-  function loadTeacherFromLS(){
-    const v = localStorage.getItem(LS_KEY_TEACHER);
-    if (v) teacherInp.value = v;
-  }
-  function saveTeacherToLS(){
-    const v = teacherInp.value.trim();
-    if (v) localStorage.setItem(LS_KEY_TEACHER, v);
-    else   localStorage.removeItem(LS_KEY_TEACHER);
-  }
-  let _tSave;
-  function debouncedSaveTeacher(){
-    clearTimeout(_tSave);
-    _tSave = setTimeout(saveTeacherToLS, 300);
-  }
-  /* === конец автосохранения === */
+  function loadTeacherFromLS(){ const v = localStorage.getItem(LS_KEY_TEACHER); if (v) teacherInp.value = v; }
+  function saveTeacherToLS(){ const v = teacherInp.value.trim(); if (v) localStorage.setItem(LS_KEY_TEACHER, v); else localStorage.removeItem(LS_KEY_TEACHER); }
+  let _tSave; function debouncedSaveTeacher(){ clearTimeout(_tSave); _tSave=setTimeout(saveTeacherToLS,300); }
 
   function setLoading(el,on,text){ el.style.display=on?'flex':'none'; if(text) el.querySelector('span:last-child').textContent=text; }
   function setBtnLoading(btn,on,labelLoading){
@@ -194,7 +195,7 @@
 
   // Предметы
   function loadSubjects(){
-    setLoading(subjectStatus,true,'Идет поиск предметов…'); subjectSel.disabled=true;
+    setLoading(subjectStatus,true,'Поиск предметов…'); subjectSel.disabled=true;
     jsonp(SCRIPT_URL,{action:'subjects'},(d)=>{
       subjectSel.innerHTML='<option value="">— выберите предмет —</option>';
       if(d&&d.ok) (d.data||[]).forEach(s=>{ const o=document.createElement('option'); o.value=s;o.textContent=s; subjectSel.appendChild(o); });
@@ -206,8 +207,9 @@
   // Группы
   subjectSel.addEventListener('change',()=>{
     studentsCard.style.display='none'; studentsList.innerHTML=''; msgEl.textContent=''; afterSend.style.display='none';
+    allPresent.checked=false; allPresentRow.style.display='none';
     const subject=subjectSel.value.trim(); if(!subject){ groupSel.innerHTML='<option value="">Сначала выберите предмет</option>'; groupSel.disabled=true; updateShowBtnState(); return; }
-    setLoading(groupStatus,true,'Идет поик групп…'); groupSel.disabled=true;
+    setLoading(groupStatus,true,'Поиск групп…'); groupSel.disabled=true;
     jsonp(SCRIPT_URL,{action:'groups',subject},(d)=>{
       groupSel.innerHTML=(d&&d.ok&&d.data.length)?'<option value="">— выберите группу —</option>':'<option value="">Группы не найдены</option>';
       if(d&&d.ok) (d.data||[]).forEach(g=>{ const o=document.createElement('option'); o.value=g;o.textContent=g; groupSel.appendChild(o); });
@@ -219,18 +221,39 @@
   showBtn.addEventListener('click',()=>{
     const subject=subjectSel.value.trim(), group=groupSel.value.trim(); if(!subject||!group) return;
     studentsCard.style.display='block'; studentsList.innerHTML=''; afterSend.style.display='none';
-    setBtnLoading(showBtn,true,'Поиск учеников…'); setLoading(studentsStatus,true,'Поиск учеников…');
+    allPresent.checked=false; allPresentRow.style.display='none';
+    setBtnLoading(showBtn,true,'Ищем учеников…'); setLoading(studentsStatus,true,'Ищем учеников…');
     jsonp(SCRIPT_URL,{action:'students',subject,group},(d)=>{
       setBtnLoading(showBtn,false); setLoading(studentsStatus,false);
       if(!(d&&d.ok)){ studentsList.innerHTML='<div class="muted">Ошибка загрузки</div>'; return; }
       const arr=d.data||[]; if(!arr.length){ studentsList.innerHTML='<div class="muted">По выбранным параметрам «Активных» учеников не найдено.</div>'; return; }
       arr.forEach(st=>{
         const row=document.createElement('div'); row.className='student';
+        const id='st_'+Math.random().toString(36).slice(2);
         row.innerHTML=`<div>${escapeHtml(st)}</div>
-                       <label class="mark"><input class="toggle" type="checkbox" value="${escapeHtml(st)}"><span>отсутствует</span></label>`;
+          <label class="mark"><input id="${id}" class="toggle" type="checkbox" value="${escapeHtml(st)}"><span class="state">Присутствует</span></label>`;
         studentsList.appendChild(row);
+        const toggle=row.querySelector('.toggle');
+        const mark=row.querySelector('.mark');
+        const state=row.querySelector('.state');
+        function updateState(){
+          if(toggle.checked){ state.textContent='Отсутствует'; mark.classList.add('absent'); allPresent.checked=false; }
+          else{ state.textContent='Присутствует'; mark.classList.remove('absent'); }
+        }
+        toggle.addEventListener('change',updateState); updateState();
       });
+      allPresentRow.style.display='flex';
     },()=>{ setBtnLoading(showBtn,false); setLoading(studentsStatus,false); studentsList.innerHTML='<div class="muted">Ошибка сети</div>'; });
+  });
+
+  // «Все присутствуют»
+  allPresent.addEventListener('change',()=>{
+    if(allPresent.checked){
+      // снимаем все индивидуальные «Отсутствует»
+      studentsList.querySelectorAll('input.toggle').forEach(t=>{
+        if(t.checked){ t.checked=false; t.dispatchEvent(new Event('change')); }
+      });
+    }
   });
 
   // Отправка
@@ -238,18 +261,31 @@
     const teacher=teacherInp.value.trim(), subject=subjectSel.value.trim(), group=groupSel.value.trim();
     const absent=Array.from(studentsList.querySelectorAll('input.toggle:checked')).map(cb=>cb.value);
     if(!teacher||!subject||!group){ msgEl.textContent='Заполните: преподаватель, предмет, группа'; msgEl.className='error'; return; }
-    if(!absent.length){ msgEl.textContent='Вы не отметили отсутствующих'; msgEl.className='error'; return; }
+
+    // режим "Все присутствуют"
+    const useAllPresent = allPresent.checked;
+    if(!useAllPresent && absent.length===0){
+      msgEl.textContent='Вы не отметили отсутствующих'; msgEl.className='error'; return;
+    }
+
+    const payloadAbsent = useAllPresent ? 'Все присутствовали' : absent.join(',');
 
     setBtnLoading(sendBtn,true,'Отправляем ваш отчёт…');
-    jsonp(SCRIPT_URL,{action:'submitabsences',teacher,subject,group,absent:absent.join(',')},(res)=>{
+    jsonp(SCRIPT_URL,{action:'submitabsences',teacher,subject,group,absent:payloadAbsent},(res)=>{
       setBtnLoading(sendBtn,false);
       if(res&&res.ok){
-        // сохраним имя в localStorage
         saveTeacherToLS();
-
-        msgEl.textContent=`Отсутствующих сегодня: ${absent.length}`; msgEl.className='success';
+        msgEl.textContent = useAllPresent ? 'Итого: Все присутствовали' : `Итого отсутствовали: ${absent.length}`;
+        msgEl.className='success';
         showSnack('Отчёт отправлен');
-        absentList.innerHTML=''; absent.forEach(n=>{ const li=document.createElement('li'); li.textContent=n; absentList.appendChild(li); });
+
+        // список ниже
+        absentList.innerHTML='';
+        if(useAllPresent){
+          const li=document.createElement('li'); li.textContent='Все присутствовали'; absentList.appendChild(li);
+        }else{
+          absent.forEach(n=>{ const li=document.createElement('li'); li.textContent=n; absentList.appendChild(li); });
+        }
         afterSend.style.display='block';
       }else{
         msgEl.textContent=(res&&res.message)||'Ошибка при сохранении'; msgEl.className='error';
@@ -261,11 +297,11 @@
 
   // init
   document.addEventListener('DOMContentLoaded', ()=>{
-    loadTeacherFromLS();  // ← подставим сохранённое имя
+    loadTeacherFromLS();
     loadSubjects();
   });
   groupSel.addEventListener('change',updateShowBtnState);
-  teacherInp.addEventListener('input', debouncedSaveTeacher); // ← автосохранение при вводе
+  teacherInp.addEventListener('input', debouncedSaveTeacher);
 </script>
 </body>
 </html>
