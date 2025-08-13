@@ -83,22 +83,22 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>Отметка отсутствующих</h1>
-    <p>Быстрая фиксация пропусков занятий</p>
+    <h1>📅 Отметка отсутствующих Repetitor.tj</h1>
+    <p>Фиксация пропусков занятий</p>
   </header>
 
   <section class="card" aria-live="polite">
     <div class="row">
       <div>
         <label for="teacher">Преподаватель</label>
-        <input id="teacher" type="text" placeholder="Например: И.А. Петров">
+        <input id="teacher" type="text" placeholder="Например: Бакоев Фаррух">
         <div class="muted" style="margin-top:4px">Ваше имя попадёт в отчёт</div>
       </div>
 
       <div>
         <label for="subject">Предмет</label>
         <div id="subjectStatus" class="status" style="display:none">
-          <span class="spinner" style="border-color:#CFEAFA;border-top-color:#29A9E8"></span><span>Мы ищем ваши предметы…</span>
+          <span class="spinner" style="border-color:#CFEAFA;border-top-color:#29A9E8"></span><span>Идет поиск предмета…</span>
         </div>
         <select id="subject" disabled><option>Загрузка…</option></select>
       </div>
@@ -106,7 +106,7 @@
       <div>
         <label for="group">Группа</label>
         <div id="groupStatus" class="status" style="display:none">
-          <span class="spinner" style="border-color:#CFEAFA;border-top-color:#29A9E8"></span><span>Мы ищем ваши группы…</span>
+          <span class="spinner" style="border-color:#CFEAFA;border-top-color:#29A9E8"></span><span>Идет поиск групп…</span>
         </div>
         <select id="group" disabled><option>Сначала выберите предмет</option></select>
       </div>
@@ -118,7 +118,7 @@
   <section class="card" id="studentsCard" style="display:none" aria-live="polite">
     <div class="row">
       <div id="studentsStatus" class="status" style="display:none">
-        <span class="spinner" style="border-color:#CFEAFA;border-top-color:#29A9E8"></span><span>Ищем учеников…</span>
+        <span class="spinner" style="border-color:#CFEAFA;border-top-color:#29A9E8"></span><span>Поиск учеников…</span>
       </div>
 
       <div class="students" id="students"></div>
@@ -194,7 +194,7 @@
 
   // Предметы
   function loadSubjects(){
-    setLoading(subjectStatus,true,'Мы ищем ваши предметы…'); subjectSel.disabled=true;
+    setLoading(subjectStatus,true,'Идет поиск предметов…'); subjectSel.disabled=true;
     jsonp(SCRIPT_URL,{action:'subjects'},(d)=>{
       subjectSel.innerHTML='<option value="">— выберите предмет —</option>';
       if(d&&d.ok) (d.data||[]).forEach(s=>{ const o=document.createElement('option'); o.value=s;o.textContent=s; subjectSel.appendChild(o); });
@@ -207,7 +207,7 @@
   subjectSel.addEventListener('change',()=>{
     studentsCard.style.display='none'; studentsList.innerHTML=''; msgEl.textContent=''; afterSend.style.display='none';
     const subject=subjectSel.value.trim(); if(!subject){ groupSel.innerHTML='<option value="">Сначала выберите предмет</option>'; groupSel.disabled=true; updateShowBtnState(); return; }
-    setLoading(groupStatus,true,'Мы ищем ваши группы…'); groupSel.disabled=true;
+    setLoading(groupStatus,true,'Идет поик групп…'); groupSel.disabled=true;
     jsonp(SCRIPT_URL,{action:'groups',subject},(d)=>{
       groupSel.innerHTML=(d&&d.ok&&d.data.length)?'<option value="">— выберите группу —</option>':'<option value="">Группы не найдены</option>';
       if(d&&d.ok) (d.data||[]).forEach(g=>{ const o=document.createElement('option'); o.value=g;o.textContent=g; groupSel.appendChild(o); });
@@ -219,7 +219,7 @@
   showBtn.addEventListener('click',()=>{
     const subject=subjectSel.value.trim(), group=groupSel.value.trim(); if(!subject||!group) return;
     studentsCard.style.display='block'; studentsList.innerHTML=''; afterSend.style.display='none';
-    setBtnLoading(showBtn,true,'Ищем учеников…'); setLoading(studentsStatus,true,'Ищем учеников…');
+    setBtnLoading(showBtn,true,'Поиск учеников…'); setLoading(studentsStatus,true,'Поиск учеников…');
     jsonp(SCRIPT_URL,{action:'students',subject,group},(d)=>{
       setBtnLoading(showBtn,false); setLoading(studentsStatus,false);
       if(!(d&&d.ok)){ studentsList.innerHTML='<div class="muted">Ошибка загрузки</div>'; return; }
@@ -247,7 +247,7 @@
         // сохраним имя в localStorage
         saveTeacherToLS();
 
-        msgEl.textContent=`Сохранено записей: ${absent.length}`; msgEl.className='success';
+        msgEl.textContent=`Отсутствующих сегодня: ${absent.length}`; msgEl.className='success';
         showSnack('Отчёт отправлен');
         absentList.innerHTML=''; absent.forEach(n=>{ const li=document.createElement('li'); li.textContent=n; absentList.appendChild(li); });
         afterSend.style.display='block';
